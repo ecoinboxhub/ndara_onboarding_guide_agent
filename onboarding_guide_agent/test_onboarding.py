@@ -20,9 +20,13 @@ def save_session_store(store):
     with open(SESSION_STORE_FILE, 'w') as f:
         json.dump(store, f, indent=4)
 
-def get_or_create_user_session(session_store):
-    if session_store:
-        user_id, session_data = next(iter(session_store.items()))
+def get_or_create_user_session(session_store, user_id=None):
+    """
+    If user_id is provided and exists in session_store, resume session.
+    Otherwise, create new user_id and session.
+    """
+    if user_id and user_id in session_store:
+        session_data = session_store[user_id]
         session_id = session_data.get('session_id')
         current_step = session_data.get('current_step', 1)
     else:
@@ -45,15 +49,15 @@ async def run_simulation():
     print("=== Ndara.ai Interactive LLM + RAG Onboarding Guide ===\n")
     print("This console strictly uses real conversational APIs, memory tracking, and RAG.")
     print("Note: Ensure you have an OPENAI_API_KEY in your .env file in the root AI-PROJECT folder.\n")
-    
+
     faq_path = os.path.join(os.path.dirname(__file__), 'platform_onboarding_faq.json')
     try:
         from database import init_db
         await init_db()
-        
+
         # IMPORTANT: Verify your environment variables and external service availability here
         # For example, check OPENAI_API_KEY, vector DB endpoint, credentials, etc.
-        
+
         agent = OnboardingGuideAgent(faq_path=faq_path, llm_provider='openai')
     except ImportError as e:
         print(f"Error: Missing library {e}. Run: pip install -r requirements.txt")
@@ -64,7 +68,19 @@ async def run_simulation():
         return
 
     session_store = load_session_store()
-    user_id, session_id, current_step = get_or_create_user_session(session_store)
+
+    # Ask user if they want to resume or start new
+    print("Do you have an existing User ID? (y/n)")
+    choice = input().strip().lower()
+    if choice == 'y':
+        user_id = input("Enter your User ID: ").strip()
+        if user_id not in session_store:
+            print("User ID not found. Starting a new session.")
+            user_id = None
+    else:
+        user_id = None
+
+    user_id, session_id, current_step = get_or_create_user_session(session_store, user_id)
 
     print(f"User ID: {user_id}")
     print(f"Session ID: {session_id}")
@@ -77,23 +93,23 @@ async def run_simulation():
     while True:
         print(f"\n--- [Context: Step {current_step}] ---")
         user_input = input("You: ")
-        
+
         if user_input.lower() in ['quit', 'exit']:
             print("Exiting simulation. Your progress has been saved.")
             break
-            
+
         print("\nThinking...")
         response, metadata = await agent.process_message(user_id, current_step, user_input, session_id)
-        
+
         print(f"\n🤖 Agent: {response}")
         print(f"📊 Debug Escalate Flag: {metadata.get('escalate_to')}")
-        
+
         if metadata.get("escalate_to") == "live_agent_bridge":
             print("\n🚨 ESCALATION ACTIVE: This conversation has been bridged to the Admin Dashboard.")
             if metadata.get("locked"):
                 print("Conversation is locked to a human agent.")
             break
-            
+
         action = input("\n[Simulation] Type 'next' to pretend you completed the step in the UI, or just hit Enter to continue chatting: ").strip().lower()
         if action == 'next':
             current_step += 1
