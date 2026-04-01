@@ -19,7 +19,14 @@ class RAGManager:
         )
         
         # We use standard default embeddings (could swap for OpenAI embeddings inside `.env` if desired)
-        self.embedding_func = embedding_functions.DefaultEmbeddingFunction()
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            self.embedding_func = embedding_functions.OpenAIEmbeddingFunction(
+                api_key=api_key,
+                model_name="text-embedding-3-small"
+            )
+        else:
+            self.embedding_func = embedding_functions.DefaultEmbeddingFunction()
         
         # Native FAQ Collections
         self.collection = self.chroma_client.get_or_create_collection(
