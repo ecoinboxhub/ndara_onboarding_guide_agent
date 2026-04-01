@@ -1,0 +1,50 @@
+# ================================================================
+# ndara.ai Customer AI - Requirements
+# ================================================================
+
+# Build / base (CVE-2022-40897 ReDoS, CVE-2024-6345, CVE-2025-47273)
+setuptools>=78.1.1
+
+# Core AI/ML
+openai>=1.12.0                    # OpenAI GPT models (SDK 2.x compatible)
+
+# Agentic Framework (LangGraph)
+langgraph>=0.3.0                  # Stateful agent graph with tool calling
+langchain-openai>=0.3.0           # ChatOpenAI model wrapper
+langchain-core>=0.3.0             # Base classes (messages, tools)
+
+# RAG (Retrieval Augmented Generation)
+psycopg2-binary>=2.9.9            # PostgreSQL adapter for pgvector 
+chromadb>=0.5.0,<0.6.0            # ChromaDB (legacy/local dev); 0.5+ required for SQLite schema (no collections.topic)
+numpy==1.26.4                     # Numerical operations
+
+# Machine Learning (for new AI features)
+scikit-learn>=1.3.0               # Clustering, similarity matching
+scipy>=1.11.0                     # Scientific computing
+
+# Data Processing
+pydantic>=2.7.4                   # Data validation (>=2.7.4 required by langgraph)
+python-dotenv==1.0.0              # Environment management
+
+# API Framework (Minimal) - FastAPI>=0.116.0 pulls starlette>=0.40.0 (CVE-2024-47874)
+fastapi>=0.116.0                  # Lightweight API
+uvicorn[standard]==0.24.0         # ASGI server
+
+# Utilities
+aiofiles==23.2.0                  # Async file operations
+python-multipart>=0.0.22          # Form data (CVE-2024-24762, CVE-2024-53981, CVE-2026-24486)
+httpx==0.25.2                     # HTTP client for appointment booking
+slowapi>=0.1.9                    # Rate limiting for FastAPI
+filelock>=3.12.0                  # Cross-platform file locking for model registry
+
+# Production deployment
+gunicorn>=23.0.0                  # Production server (CVE-2024-1135, CVE-2024-6827)
+# redis==5.0.1                    # Caching layer (optional)
+# pinecone-client>=2.2.0          # Production vector DB (optional, uncomment if using Pinecone)
+
+# Development Tools (Optional - uncomment for development)
+# pytest==7.4.3                   # Testing
+# pytest-asyncio==0.21.1          # Async testing
+# black==23.7.0                   # Code formatting
+# flake8==6.0.0                   # Linting
+# mypy==1.5.1                     # Type checking

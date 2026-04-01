@@ -1,0 +1,79 @@
+name: AI Deploy
+
+on:
+  push:
+    # Trigger on both master and your new feature branch
+    branches: [ master, feature/secure-deployment ]
+
+jobs:
+  # --- JOB 1: QUALITY & SECURITY GATES ---
+  test_and_lint:
+    name: Quality & Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history required for secret scanning
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Linting & Security Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 bandit
+
+      - name: Secret Scan (Gitleaks)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/path" \
+            -w /path \
+            zricethezav/gitleaks:v7.4.0 \
+            --path=/path \
+            --verbose \
+            --redact
+
+      - name: Syntax Check (Flake8)
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Security Audit (Bandit)
+        run: |
+          # Skip B104 (binding to 0.0.0.0) as it is required for Docker
+          bandit -r ./customer_ai -ll -ii -s B104
+
+  # --- JOB 2: DEPLOYMENT (Only runs if Job 1 passes) ---
+  deploy:
+    name: Deploy to AWS
+    needs: test_and_lint 
+    runs-on: ubuntu-latest
+    # Only deploy if we are on the feature branch or master
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feature/secure-deployment'
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 54.78.250.176
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ~/AI-PROJECT
+            
+            # Update the remote URL to use the PAT for authentication
+            git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/ndaraAI-project/AI-PROJECT.git
+            
+            # Dynamically fetch and reset to the branch that triggered the workflow
+            # Using ${GITHUB_REF#refs/heads/} to get the branch name (e.g., feature/secure-deployment)
+            TARGET_BRANCH=${{ github.ref_name }}
+            git fetch origin $TARGET_BRANCH
+            git reset --hard origin/$TARGET_BRANCH
+            
+            # Build and Restart Docker
+            docker build -t ndara-ai ./customer_ai
+            docker stop ndara-ai || true
+            docker rm ndara-ai || true
+            docker run -d --name ndara-ai -p 8000:8000 --restart always ndara-ai

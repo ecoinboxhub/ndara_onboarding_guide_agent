@@ -1,0 +1,12 @@
+openai
+python-dotenv
+chromadb
+fastapi
+uvicorn
+pydantic
+tenacity
+sqlalchemy
+aiosqlite
+asyncpg
+aiomysql
+sqlalchemy
